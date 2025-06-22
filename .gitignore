@@ -1,3 +1,5 @@
 /node_modules
 .env
-/uploads
+/uploads/university
+/uploads/career
+/uploads/course
