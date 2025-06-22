@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import connectDb from "./config/dbConnection.js";
 import contactRoutes from "./routes/contact.js";
 import universityRoutes from "./routes/university.js";
+import courseRoutes from './routes/course.js'
 
 dotenv.config();
 connectDb();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use("/api/contact", contactRoutes);
 app.use('/api/university', universityRoutes);
+app.use('/api/course', courseRoutes);
 
 const PORT = process.env.PORT || 5000;
 
