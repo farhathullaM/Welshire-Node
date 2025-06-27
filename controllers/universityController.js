@@ -3,8 +3,8 @@ import University from "../models/University.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import { deleteFileWithFolderName } from "../helpers/fileDelete.js";
 
-// Ensure directory exists
 const uploadPath = path.join("uploads", "university");
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
@@ -35,21 +35,6 @@ const upload = multer({
     }
   }
 });
-
-// Helper function to delete files
-const deleteFileWithFolderName = async (folderPath, filename) => {
-  if (!filename) return;
-  
-  try {
-    const filePath = path.join(folderPath, filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`Deleted file: ${filename}`);
-    }
-  } catch (error) {
-    console.error(`Error deleting file ${filename}:`, error);
-  }
-};
 
 const addUniversity = asyncHandler(async (req, res) => {
   const { name, type, description } = req.body;

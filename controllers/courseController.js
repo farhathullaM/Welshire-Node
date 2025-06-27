@@ -3,6 +3,8 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import Course from "../models/Course.js";
+import University from "../models/University.js";
+import { deleteFileWithFolderName } from "../helpers/fileDelete.js";
 
 const uploadPath = path.join("uploads", "course");
 if (!fs.existsSync(uploadPath)) {
@@ -18,10 +20,145 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+// Configure multer to handle multiple files
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    // Optional: Add file type validation
+    const allowedTypes = /jpeg|jpg|png|gif|svg/;
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = allowedTypes.test(file.mimetype);
 
-const addCourse = asyncHandler(async (req, res) => {
-  // const
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
 });
 
-export { upload, addCourse };
+const addCourse = asyncHandler(async (req, res) => {
+  const { university_id, name, description, image, duration, fees, mode } =
+    req.body;
+
+  //validation
+  if (!university_id || !name) {
+    res.status(400);
+    throw new Error("University id and name is mandatory");
+  }
+
+  //Check if university exist
+  const university = await University.findById(university_id);
+  if (!university) {
+    res.status(404);
+    throw new Error("University not found");
+  }
+
+  //image upload
+  let imageName = null;
+  if (req.files) {
+    imageName = req.files.image ? req.files.image[0].filename : null;
+  }
+
+  const course = await Course.create({
+    university_id,
+    name,
+    description,
+    image: imageName,
+    duration,
+    fees,
+    mode,
+  });
+  res.status(201).json(course);
+});
+
+const updateCourse = asyncHandler(async (req, res) => {
+  const { university_id, name, description, image, duration, fees, mode } =
+    req.body;
+
+  //Check if course exist
+  const course = await Course.findById(req.params.id);
+  if (!course) {
+    res.status(404);
+    throw new Error("Course not found");
+  }
+
+  //Check if university exist
+  if (university_id) {
+    const university = await University.findById(university_id);
+    if (!university) {
+      res.status(404);
+      throw new Error("University not found");
+    }
+  }
+
+  //prepare update object
+  const updateData = {
+    name: name || course.name,
+    description: description || course.description,
+    image: image || course.image,
+    duration: duration || course.duration,
+    fees: fees || course.fees,
+    mode: mode || course.mode,
+  };
+
+  //file update
+  let newImageName = course.image;
+  if (req.files) {
+    if (req.files.image) {
+      // Delete old image if exists
+      if (course.image) {
+        await deleteFileWithFolderName(uploadPath, course.image);
+      }
+      newImageName = req.files.image[0].filename;
+    }
+  }
+
+  //update course
+  const updatedCourse = await Course.findByIdAndUpdate(
+    req.params.id,
+    { ...updateData, image: newImageName },
+    { new: true }
+  );
+  res.status(200).json(updatedCourse);
+});
+
+const deleteCourse = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+  if (!course) {
+    res.status(404);
+    throw new Error("Course not found");
+  }
+  if (course.image) {
+    await deleteFileWithFolderName(uploadPath, course.image);
+  }
+  await Course.findByIdAndDelete(req.params.id);
+  res
+    .status(200)
+    .json({ success: true, message: "Course deleted successfully" });
+});
+
+const getAllCourses = asyncHandler(async (req, res) => {
+  const courses = await Course.find({});
+  res.status(200).send(courses);
+});
+
+const getCourse = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+  if (!course) {
+    res.status(404);
+    throw new Error("Course not found");
+  }
+  res.status(200).send(course);
+});
+
+export {
+  upload,
+  addCourse,
+  updateCourse,
+  deleteCourse,
+  getAllCourses,
+  getCourse,
+};

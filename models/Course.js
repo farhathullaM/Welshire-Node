@@ -11,7 +11,13 @@ const courseSchema = new mongoose.Schema(
     description: { type: String },
     image: { type: String },
     duration: { type: String },
-    mode: { type: String, enum: ["online", "offline"], required: true },
+    fees: { type: String },
+    mode: {
+      type: String,
+      enum: ["online", "offline"],
+      default: "online",
+      required: true,
+    },
     trash: {
       type: Boolean,
       default: false,
