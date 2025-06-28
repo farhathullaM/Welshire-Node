@@ -12,6 +12,7 @@ const courseSchema = new mongoose.Schema(
     image: { type: String },
     duration: { type: String },
     fees: { type: String },
+    eligibility: { type: String },
     mode: {
       type: String,
       enum: ["online", "offline"],

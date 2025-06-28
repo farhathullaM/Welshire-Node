@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import University from "../models/University.js";
+import Course from "../models/Course.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
@@ -20,20 +21,22 @@ const storage = multer.diskStorage({
 });
 
 // Configure multer to handle multiple files
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     // Optional: Add file type validation
     const allowedTypes = /jpeg|jpg|png|gif|svg/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error("Only image files are allowed"));
     }
-  }
+  },
 });
 
 const addUniversity = asyncHandler(async (req, res) => {
@@ -49,8 +52,7 @@ const addUniversity = asyncHandler(async (req, res) => {
   if (req.files) {
     imageName = req.files.image ? req.files.image[0].filename : null;
     iconName = req.files.icon ? req.files.icon[0].filename : null;
-  } 
-
+  }
 
   const university = await University.create({
     name,
@@ -63,7 +65,7 @@ const addUniversity = asyncHandler(async (req, res) => {
 });
 
 const getAllUniversities = asyncHandler(async (req, res) => {
-  const universities = await University.find({});
+  const universities = await University.find({}).select("name");
   res.status(200).send(universities);
 });
 
@@ -73,7 +75,13 @@ const getUniversity = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("University not found");
   }
-  res.status(200).json(university);
+
+  const courses = await Course.find({ university_id: req.params.id });
+
+  res.status(200).json({
+    university,
+    courses,
+  });
 });
 
 const deleteUniversity = asyncHandler(async (req, res) => {
@@ -82,21 +90,22 @@ const deleteUniversity = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("University not found");
   }
-   if (university.image) {
+  if (university.image) {
     await deleteFileWithFolderName(uploadPath, university.image);
   }
   if (university.icon) {
     await deleteFileWithFolderName(uploadPath, university.icon);
   }
 
-   await University.findByIdAndDelete(req.params.id);
-  res.status(200).json({ success: true, message: "University deleted successfully" });
-
+  await University.findByIdAndDelete(req.params.id);
+  res
+    .status(200)
+    .json({ success: true, message: "University deleted successfully" });
 });
 
 const updateUniversity = asyncHandler(async (req, res) => {
   const { name, type, description } = req.body;
-  
+
   const university = await University.findById(req.params.id);
   if (!university) {
     res.status(404);
@@ -123,7 +132,7 @@ const updateUniversity = asyncHandler(async (req, res) => {
       }
       newImageName = req.files.image[0].filename;
     }
-    
+
     if (req.files.icon) {
       // Delete old icon if exists
       if (university.icon) {
@@ -134,7 +143,9 @@ const updateUniversity = asyncHandler(async (req, res) => {
   } else if (req.file) {
     // If using single file upload, you need to specify which field it's for
     // This is problematic as you can't distinguish between image and icon
-    console.warn("Single file upload detected - cannot distinguish between image and icon");
+    console.warn(
+      "Single file upload detected - cannot distinguish between image and icon"
+    );
   }
 
   // Update the data object with new file names

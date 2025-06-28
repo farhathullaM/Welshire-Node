@@ -17,6 +17,13 @@ const applySchema = new mongoose.Schema(
     course: {
       type: String,
     },
+    message: {
+      type: String,
+    },
+    resolved: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

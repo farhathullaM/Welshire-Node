@@ -57,10 +57,25 @@ const updateContact = asyncHandler(async (req, res) => {
   res.status(200).json(updatedContact);
 });
 
+const resolveContact = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id);
+  if (!contact) {
+    res.status(404);
+    throw new Error("Contact not found");
+  }
+  const updatedContact = await Contact.findByIdAndUpdate(
+    req.params.id,
+    { resolved: true },
+    { new: true }
+  );
+  res.status(200).json(updatedContact);
+});
+
 export {
   getAllContacts,
   createContact,
   getContact,
   deleteContact,
   updateContact,
+  resolveContact
 };

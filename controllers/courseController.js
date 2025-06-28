@@ -40,8 +40,15 @@ const upload = multer({
 });
 
 const addCourse = asyncHandler(async (req, res) => {
-  const { university_id, name, description, image, duration, fees, mode } =
-    req.body;
+  const {
+    university_id,
+    name,
+    description,
+    duration,
+    fees,
+    mode,
+    eligibility,
+  } = req.body;
 
   //validation
   if (!university_id || !name) {
@@ -58,8 +65,8 @@ const addCourse = asyncHandler(async (req, res) => {
 
   //image upload
   let imageName = null;
-  if (req.files) {
-    imageName = req.files.image ? req.files.image[0].filename : null;
+  if (req.file) {
+    imageName = req.file.filename;
   }
 
   const course = await Course.create({
@@ -70,12 +77,13 @@ const addCourse = asyncHandler(async (req, res) => {
     duration,
     fees,
     mode,
+    eligibility,
   });
   res.status(201).json(course);
 });
 
 const updateCourse = asyncHandler(async (req, res) => {
-  const { university_id, name, description, image, duration, fees, mode } =
+  const { university_id, name, description, image, duration, fees, mode, eligibility } =
     req.body;
 
   //Check if course exist
@@ -102,18 +110,16 @@ const updateCourse = asyncHandler(async (req, res) => {
     duration: duration || course.duration,
     fees: fees || course.fees,
     mode: mode || course.mode,
+    eligibility: eligibility || course.eligibility,
   };
 
   //file update
   let newImageName = course.image;
-  if (req.files) {
-    if (req.files.image) {
-      // Delete old image if exists
-      if (course.image) {
-        await deleteFileWithFolderName(uploadPath, course.image);
-      }
-      newImageName = req.files.image[0].filename;
+  if (req.file) {
+    if (course.image) {
+      await deleteFileWithFolderName(uploadPath, course.image);
     }
+    newImageName = req.file.filename;
   }
 
   //update course
