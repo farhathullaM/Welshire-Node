@@ -10,6 +10,7 @@ import applyRoutes from "./routes/apply.js";
 import blogRoutes from "./routes/blog.js";
 import testimonialRoutes from "./routes/testimonial.js";
 import userRoutes from "./routes/user.js";
+import publicRoutes from "./routes/public.js";
 
 dotenv.config();
 connectDb();
@@ -27,6 +28,7 @@ app.use("/api/apply", applyRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/testimonial", testimonialRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/public", publicRoutes);
 
 const PORT = process.env.PORT || 5000;
 

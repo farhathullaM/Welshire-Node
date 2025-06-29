@@ -1,6 +1,5 @@
 import asyncHandler from "express-async-handler";
 import University from "../models/University.js";
-import Course from "../models/Course.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
@@ -65,23 +64,41 @@ const addUniversity = asyncHandler(async (req, res) => {
 });
 
 const getAllUniversities = asyncHandler(async (req, res) => {
-  const universities = await University.find({}).select("name");
-  res.status(200).send(universities);
+  console.log(req.query, "-------");
+  // const { search = "", page = 1, limit = 10 } = req.query;
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    name: { $regex: search, $options: "i" },
+  };
+
+  const skip = (page - 1) * limit;
+
+  const universities = await University.find(query)
+    .skip(skip)
+    .limit(Number(limit));
+
+  const total = await University.countDocuments(query);
+
+  res.status(200).json({
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    universities,
+  });
 });
 
 const getUniversity = asyncHandler(async (req, res) => {
   const university = await University.findById(req.params.id);
+
   if (!university) {
     res.status(404);
     throw new Error("University not found");
   }
 
-  const courses = await Course.find({ university_id: req.params.id });
-
-  res.status(200).json({
-    university,
-    courses,
-  });
+  res.status(200).json(university);
 });
 
 const deleteUniversity = asyncHandler(async (req, res) => {
