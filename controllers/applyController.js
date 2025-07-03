@@ -18,8 +18,26 @@ const addApplication = asyncHandler(async (req, res) => {
 });
 
 const getAllApplications = asyncHandler(async (req, res) => {
-  const applies = await Apply.find({});
-  res.status(200).send(applies);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    name: { $regex: search, $options: "i" },
+  };
+
+  const skip = (page - 1) * limit;
+
+  const applications = await Apply.find(query).skip(skip).limit(Number(limit));
+
+  const total = await Apply.countDocuments(query);
+
+  res.status(200).json({
+    applications,
+    total,
+    page,
+    limit,
+  });
 });
 
 const getApplication = asyncHandler(async (req, res) => {

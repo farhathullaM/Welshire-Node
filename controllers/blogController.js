@@ -60,8 +60,26 @@ const addBlog = asyncHandler(async (req, res) => {
 });
 
 const getAllBlogs = asyncHandler(async (req, res) => {
-  const blogs = await Blog.find({});
-  res.status(200).send(blogs);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    name: { $regex: search, $options: "i" },
+  };
+
+  const skip = (page - 1) * limit;
+
+  const blogs = await Blog.find(query).skip(skip).limit(Number(limit));
+
+  const total = await Blog.countDocuments(query);
+
+  res.status(200).json({
+    total,
+    page,
+    limit,
+    blogs,
+  });
 });
 
 const getBlog = asyncHandler(async (req, res) => {

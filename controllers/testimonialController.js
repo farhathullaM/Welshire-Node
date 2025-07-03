@@ -60,8 +60,23 @@ const addTestimonial = asyncHandler(async (req, res) => {
 });
 
 const getAllTestimonials = asyncHandler(async (req, res) => {
-  const testimonials = await Testimonial.find({});
-  res.status(200).send(testimonials);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    name: { $regex: search, $options: "i" },
+  };
+
+  const skip = (page - 1) * limit;
+
+  const testimonials = await Testimonial.find(query)
+    .skip(skip)
+    .limit(Number(limit));
+
+  const total = await Testimonial.countDocuments(query);
+
+  res.status(200).json({ testimonials, total, page, limit });
 });
 
 const deleteTestimonial = asyncHandler(async (req, res) => {

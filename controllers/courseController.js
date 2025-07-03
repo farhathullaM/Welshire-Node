@@ -83,8 +83,16 @@ const addCourse = asyncHandler(async (req, res) => {
 });
 
 const updateCourse = asyncHandler(async (req, res) => {
-  const { university_id, name, description, image, duration, fees, mode, eligibility } =
-    req.body;
+  const {
+    university_id,
+    name,
+    description,
+    image,
+    duration,
+    fees,
+    mode,
+    eligibility,
+  } = req.body;
 
   //Check if course exist
   const course = await Course.findById(req.params.id);
@@ -152,12 +160,26 @@ const getAllCourses = asyncHandler(async (req, res) => {
 });
 
 const getCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id);
-  if (!course) {
-    res.status(404);
-    throw new Error("Course not found");
-  }
-  res.status(200).send(course);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    name: { $regex: search, $options: "i" },
+  };
+
+  const skip = (page - 1) * limit;
+
+  const courses = await Course.find(query).skip(skip).limit(Number(limit));
+
+  const total = await Course.countDocuments(query);
+
+  res.status(200).json({
+    total,
+    page,
+    limit,
+    courses,
+  });
 });
 
 export {
