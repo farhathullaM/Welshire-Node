@@ -3,7 +3,7 @@ import Blog from "../models/Blog.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { deleteFileWithFolderName } from "../helpers/fileDelete.js";
+import { deleteFileWithFolderName } from "../utils/fileDelete.js";
 
 const uploadPath = path.join("uploads", "blog");
 if (!fs.existsSync(uploadPath)) {

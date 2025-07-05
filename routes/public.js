@@ -7,7 +7,7 @@ import {
   getUniversityDetails,
   getUniversityList,
 } from "../controllers/publicController.js";
-import { suggestUniversities } from "../controllers/universitySuggestionController.jsx";
+import { suggestUniversities } from "../controllers/universitySuggestionController.js";
 
 const router = express.Router();
 

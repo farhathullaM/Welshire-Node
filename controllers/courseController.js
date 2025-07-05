@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import Course from "../models/Course.js";
 import University from "../models/University.js";
-import { deleteFileWithFolderName } from "../helpers/fileDelete.js";
+import { deleteFileWithFolderName } from "../utils/fileDelete.js";
 
 const uploadPath = path.join("uploads", "course");
 if (!fs.existsSync(uploadPath)) {
