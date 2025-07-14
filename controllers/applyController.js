@@ -23,7 +23,11 @@ const getAllApplications = asyncHandler(async (req, res) => {
   const search = req.query.search || "";
 
   const query = {
-    name: { $regex: search, $options: "i" },
+    $or: [
+      { name: { $regex: search, $options: "i" } },
+      { course: { $regex: search, $options: "i" } },
+      { message: { $regex: search, $options: "i" } },
+    ],
   };
 
   const skip = (page - 1) * limit;

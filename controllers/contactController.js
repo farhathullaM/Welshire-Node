@@ -2,8 +2,25 @@ import asyncHandler from "express-async-handler";
 import Contact from "../models/Contact.js";
 
 const getAllContacts = asyncHandler(async (req, res) => {
-  const contacts = await Contact.find({});
-  res.status(200).send(contacts);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    $or: [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { message: { $regex: search, $options: "i" } },
+    ],
+  };
+
+  const skip = (page - 1) * limit;
+
+  const contacts = await Contact.find(query).skip(skip).limit(Number(limit));
+
+  const total = await Contact.countDocuments(query);
+
+  res.status(200).json({ contacts, total, page, limit });
 });
 
 const createContact = asyncHandler(async (req, res) => {
@@ -18,7 +35,13 @@ const createContact = asyncHandler(async (req, res) => {
     phone,
     message,
   });
-  res.status(201).json(contact);
+  res
+    .status(201)
+    .json({
+      success: true,
+      message: "Message sent successfully",
+      data: contact,
+    });
 });
 
 const getContact = asyncHandler(async (req, res) => {
@@ -77,5 +100,5 @@ export {
   getContact,
   deleteContact,
   updateContact,
-  resolveContact
+  resolveContact,
 };

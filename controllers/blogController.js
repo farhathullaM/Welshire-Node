@@ -65,7 +65,7 @@ const getAllBlogs = asyncHandler(async (req, res) => {
   const search = req.query.search || "";
 
   const query = {
-    name: { $regex: search, $options: "i" },
+    title: { $regex: search, $options: "i" },
   };
 
   const skip = (page - 1) * limit;

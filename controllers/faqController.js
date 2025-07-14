@@ -27,8 +27,35 @@ const updateFaq = asyncHandler(async (req, res) => {
 });
 
 const getAllFaqs = asyncHandler(async (req, res) => {
-  const faqs = await Faq.find({});
-  res.status(200).send(faqs);
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+const query = {
+  question: { $regex: search, $options: "i" },
+};
+
+
+  const skip = (page - 1) * limit;
+
+  const faqs = await Faq.find(query).skip(skip).limit(Number(limit));
+
+  const total = await Faq.countDocuments(query);
+
+  res.status(200).json({
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    faqs,
+  });
+});
+
+const getFaqById = asyncHandler(async (req, res) => {
+  const faq = await Faq.findById(req.params.id);
+  if (!faq) {
+    res.status(404);
+    throw new Error("Faq not found");
+  }
+  res.status(200).json(faq);
 });
 
 const deleteFaq = asyncHandler(async (req, res) => {
@@ -57,4 +84,4 @@ const trashFaq = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Faq moved to trash" });
 });
 
-export { addFaq, updateFaq, getAllFaqs, deleteFaq, trashFaq };
+export { addFaq, updateFaq, getAllFaqs, deleteFaq, trashFaq, getFaqById };

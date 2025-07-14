@@ -1,8 +1,8 @@
 import asyncHandler from "express-async-handler";
 import UserRequest from "../models/UserRequest.js";
-import University from "../models/University.js";
+// import University from "../models/University.js";
 
-export const suggestUniversities = asyncHandler(async (req, res) => {
+const suggestUniversities = asyncHandler(async (req, res) => {
   const {
     name,
     phone,
@@ -36,7 +36,8 @@ export const suggestUniversities = asyncHandler(async (req, res) => {
   });
 
   res.status(201).json({
-    message: "User request created",
+    message: "Request submitted successfully",
+    success: true,
     data: {
       name,
       phone,
@@ -64,3 +65,44 @@ export const suggestUniversities = asyncHandler(async (req, res) => {
   //   const universities = await University.find(query).limit(10);
   //   res.json({ message: "Matching universities", data: universities });
 });
+
+const getAllSuggestions = asyncHandler(async (req, res) => {
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const search = req.query.search || "";
+
+  const query = {
+    $or: [
+      { name: { $regex: search, $options: "i" } },
+      { interestedArea: { $regex: search, $options: "i" } },
+      { qualification: { $regex: search, $options: "i" } },
+    ],
+  };
+
+  const skip = (page - 1) * limit;
+
+  const suggestions = await UserRequest.find(query)
+    .skip(skip)
+    .limit(Number(limit));
+
+  const total = await UserRequest.countDocuments(query);
+
+  res.status(200).json({
+    suggestions,
+    total,
+    page,
+    limit,
+  });
+});
+
+const deleteSuggestion = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const suggestion = await UserRequest.findByIdAndDelete(id);
+  if (!suggestion) {
+    res.status(404);
+    throw new Error("Suggestion not found");
+  }
+  res.status(200).json({ message: "Suggestion deleted successfully" });
+});
+
+export { suggestUniversities, getAllSuggestions, deleteSuggestion };

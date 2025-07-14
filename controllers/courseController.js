@@ -154,14 +154,14 @@ const deleteCourse = asyncHandler(async (req, res) => {
     .json({ success: true, message: "Course deleted successfully" });
 });
 
-const getAllCourses = asyncHandler(async (req, res) => {
-  const courses = await Course.find({});
+const getCourse = asyncHandler(async (req, res) => {
+  const courses = await Course.findById(req.params.id);
   res.status(200).send(courses);
 });
 
-const getCourse = asyncHandler(async (req, res) => {
-  const page = req.query.page || 1;
-  const limit = req.query.limit || 10;
+const getAllCourses = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
   const search = req.query.search || "";
 
   const query = {
@@ -170,7 +170,11 @@ const getCourse = asyncHandler(async (req, res) => {
 
   const skip = (page - 1) * limit;
 
-  const courses = await Course.find(query).skip(skip).limit(Number(limit));
+  const courses = await Course.find(query)
+    .sort({ createdAt: -1 })
+    .populate("university_id", "name") // populate university's name only
+    .skip(skip)
+    .limit(limit);
 
   const total = await Course.countDocuments(query);
 

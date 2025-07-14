@@ -39,6 +39,8 @@ const upload = multer({
 });
 
 const addUniversity = asyncHandler(async (req, res) => {
+  console.log(req.files, "------");
+  console.log(req.body, "------");
   const { name, type, description } = req.body;
   if (!name || !type) {
     res.status(400);
@@ -76,6 +78,7 @@ const getAllUniversities = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const universities = await University.find(query)
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(Number(limit));
 
