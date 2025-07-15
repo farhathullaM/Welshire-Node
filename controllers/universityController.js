@@ -66,7 +66,6 @@ const addUniversity = asyncHandler(async (req, res) => {
 });
 
 const getAllUniversities = asyncHandler(async (req, res) => {
-  // const { search = "", page = 1, limit = 10 } = req.query;
   const page = req.query.page || 1;
   const limit = req.query.limit || 10;
   const search = req.query.search || "";
