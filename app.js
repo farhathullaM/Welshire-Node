@@ -23,27 +23,57 @@ connectDb();
 const app = express();
 const __dirname = path.resolve();
 
-app.use(cors({ credentials: true, origin: 'http://localhost:5173'  }));
+app.use(
+  cors({
+    credentials: true,
+    origin: ["http://localhost:3000", "https://www.horizoneducation.in/"],
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use("/api/contact", protect, authorizeRoles("admin"), contactRoutes);
-app.use("/api/university", protect, authorizeRoles("admin"), universityRoutes);
-app.use("/api/course", protect, authorizeRoles("admin"), courseRoutes);
-app.use("/api/faq", protect, authorizeRoles("admin"), faqRoutes);
+app.use(
+  "/api/contact",
+  protect,
+  authorizeRoles("admin", "super_admin"),
+  contactRoutes
+);
+app.use(
+  "/api/university",
+  protect,
+  authorizeRoles("admin", "super_admin"),
+  universityRoutes
+);
+app.use(
+  "/api/course",
+  protect,
+  authorizeRoles("admin", "super_admin"),
+  courseRoutes
+);
+app.use("/api/faq", protect, authorizeRoles("admin", "super_admin"), faqRoutes);
 app.use("/api/apply", applyRoutes);
-app.use("/api/blog", protect, authorizeRoles("admin"), blogRoutes);
+app.use(
+  "/api/blog",
+  protect,
+  authorizeRoles("admin", "super_admin"),
+  blogRoutes
+);
 app.use(
   "/api/testimonial",
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles("admin", "super_admin"),
   testimonialRoutes
 );
 app.use("/api/user", userRoutes);
 app.use("/api/public", publicRoutes);
-app.use("/api/suggest", protect, authorizeRoles("admin"), suggestionRoutes);
+app.use(
+  "/api/suggest",
+  protect,
+  authorizeRoles("admin", "super_admin"),
+  suggestionRoutes
+);
 
 const PORT = process.env.PORT || 5000;
 
