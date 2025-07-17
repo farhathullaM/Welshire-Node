@@ -45,7 +45,6 @@ const createContact = asyncHandler(async (req, res) => {
 });
 
 const getContact = asyncHandler(async (req, res) => {
-  console.log(req.params.id);
   const contact = await Contact.findById(req.params.id);
   if (!contact) {
     res.status(404);

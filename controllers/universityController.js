@@ -39,8 +39,6 @@ const upload = multer({
 });
 
 const addUniversity = asyncHandler(async (req, res) => {
-  console.log(req.files, "------");
-  console.log(req.body, "------");
   const { name, type, description } = req.body;
   if (!name || !type) {
     res.status(400);

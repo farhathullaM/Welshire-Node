@@ -51,8 +51,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (user && (await bcrypt.compare(password, user.password))) {
     const token = generateToken(user);
-    console.log("Token:", token);
-    // Store in HTTP-only cookie
     res.cookie("jwt", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -114,7 +112,6 @@ const changeAdminToUser = asyncHandler(async (req, res) => {
 });
 
 const getLoggedUserDetails = asyncHandler(async (req, res) => {
-  console.log("User from protect middleware:", req.user);
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) {
