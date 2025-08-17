@@ -52,11 +52,10 @@ const loginUser = asyncHandler(async (req, res) => {
   if (user && (await bcrypt.compare(password, user.password))) {
     const token = generateToken(user);
 
-    // Correct and simplified cookie settings
     res.cookie("jwt", token, {
       httpOnly: true,
-      secure: true, // Ensure this is true for 'sameSite: none'
-      sameSite: "none", // Correct for cross-site requests
+      secure: process.env.NODE_ENV === "production", // Keep this
+      sameSite: "lax", // <--- CHANGE THIS TO 'lax'
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     res.status(200).json({
@@ -72,11 +71,10 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-  // Use consistent cookie settings to clear the cookie
   res.clearCookie("jwt", {
     httpOnly: true,
-    secure: true, // This must match the secure flag used to set the cookie
-    sameSite: "none", // This must match the sameSite flag used to set the cookie
+    secure: process.env.NODE_ENV === "production", // Keep this
+    sameSite: "lax", // <--- CHANGE THIS TO 'lax'
   });
 
   res.status(200).json({ message: "Logged out successfully" });
