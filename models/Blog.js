@@ -13,6 +13,9 @@ const blogSchma = new mongoose.Schema(
     image: {
       type: String,
     },
+    imageKey: {
+      type: String,
+    },
     author: {
       type: String,
     },

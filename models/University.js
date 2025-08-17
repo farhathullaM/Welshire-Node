@@ -17,7 +17,13 @@ const universitySchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    imageKey: {
+      type: String,
+    },
     icon: {
+      type: String,
+    },
+    iconKey: {
       type: String,
     },
     trash: {

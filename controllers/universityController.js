@@ -1,188 +1,213 @@
 import asyncHandler from "express-async-handler";
 import University from "../models/University.js";
 import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { deleteFileWithFolderName } from "../utils/fileDelete.js";
+import { v4 as uuidv4 } from "uuid";
+import { s3 } from "../utils/s3.js";
 
-const uploadPath = path.join("uploads", "university");
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-// Configure multer to handle multiple files
+// Multer Memory Storage
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    // Optional: Add file type validation
     const allowedTypes = /jpeg|jpg|png|gif|svg/;
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
+    if (mimetype && extname) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
   },
 });
 
+// Add University
 const addUniversity = asyncHandler(async (req, res) => {
   const { name, type, description } = req.body;
   if (!name || !type) {
     res.status(400);
-    throw new Error("Name and type is mandatory");
+    throw new Error("Name and type are mandatory");
   }
 
-  let imageName = null;
-  let iconName = null;
+  let imageUrl = null;
+  let iconUrl = null;
+  let imageKey = null;
+  let iconKey = null;
 
-  if (req.files) {
-    imageName = req.files.image ? req.files.image[0].filename : null;
-    iconName = req.files.icon ? req.files.icon[0].filename : null;
+  if (req.files?.image?.[0]) {
+    const imageFile = req.files.image[0];
+    imageKey = `uploads/${uuidv4()}_${imageFile.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: imageKey,
+        Body: imageFile.buffer,
+        ContentType: imageFile.mimetype,
+      })
+      .promise();
+    imageUrl = uploadRes.Location;
+  }
+
+  if (req.files?.icon?.[0]) {
+    const iconFile = req.files.icon[0];
+    iconKey = `uploads/${uuidv4()}_${iconFile.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: iconKey,
+        Body: iconFile.buffer,
+        ContentType: iconFile.mimetype,
+      })
+      .promise();
+    iconUrl = uploadRes.Location;
   }
 
   const university = await University.create({
     name,
     type,
     description,
-    image: imageName,
-    icon: iconName,
+    image: imageUrl,
+    imageKey,
+    icon: iconUrl,
+    iconKey,
   });
+
   res.status(201).json(university);
 });
 
+// Get All Universities
 const getAllUniversities = asyncHandler(async (req, res) => {
-  const page = req.query.page || 1;
-  const limit = req.query.limit || 10;
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
   const search = req.query.search || "";
-
-  const query = {
-    name: { $regex: search, $options: "i" },
-  };
-
+  const query = { name: { $regex: search, $options: "i" } };
   const skip = (page - 1) * limit;
 
   const universities = await University.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(limit);
 
   const total = await University.countDocuments(query);
 
-  res.status(200).json({
-    total,
-    page: Number(page),
-    limit: Number(limit),
-    universities,
-  });
+  res.json({ total, page, limit, universities });
 });
 
+// Get Single University
 const getUniversity = asyncHandler(async (req, res) => {
   const university = await University.findById(req.params.id);
-
   if (!university) {
     res.status(404);
     throw new Error("University not found");
   }
-
-  res.status(200).json(university);
+  res.json(university);
 });
 
+// Delete University
 const deleteUniversity = asyncHandler(async (req, res) => {
   const university = await University.findById(req.params.id);
   if (!university) {
     res.status(404);
     throw new Error("University not found");
   }
-  if (university.image) {
-    await deleteFileWithFolderName(uploadPath, university.image);
+
+  // Delete files from S3
+  if (university.imageKey) {
+    await s3
+      .deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: university.imageKey,
+      })
+      .promise();
   }
-  if (university.icon) {
-    await deleteFileWithFolderName(uploadPath, university.icon);
+  if (university.iconKey) {
+    await s3
+      .deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: university.iconKey,
+      })
+      .promise();
   }
 
-  await University.findByIdAndDelete(req.params.id);
-  res
-    .status(200)
-    .json({ success: true, message: "University deleted successfully" });
+  await university.deleteOne();
+  res.json({ message: "University deleted successfully" });
 });
 
+// Update University
 const updateUniversity = asyncHandler(async (req, res) => {
   const { name, type, description } = req.body;
-
   const university = await University.findById(req.params.id);
   if (!university) {
     res.status(404);
     throw new Error("University not found");
   }
 
-  // Prepare update object
-  const updateData = {
-    name: name || university.name,
-    type: type || university.type,
-    description: description || university.description,
-  };
+  let updatedImageUrl = university.image;
+  let updatedIconUrl = university.icon;
+  let updatedImageKey = university.imageKey;
+  let updatedIconKey = university.iconKey;
 
-  // Handle file updates
-  let newImageName = university.image;
-  let newIconName = university.icon;
-
-  if (req.files) {
-    // If using upload.fields([{name: 'image'}, {name: 'icon'}])
-    if (req.files.image) {
-      // Delete old image if exists
-      if (university.image) {
-        await deleteFileWithFolderName(uploadPath, university.image);
-      }
-      newImageName = req.files.image[0].filename;
+  if (req.files?.image?.[0]) {
+    // Delete old image from S3
+    if (university.imageKey) {
+      await s3
+        .deleteObject({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: university.imageKey,
+        })
+        .promise();
     }
-
-    if (req.files.icon) {
-      // Delete old icon if exists
-      if (university.icon) {
-        await deleteFileWithFolderName(uploadPath, university.icon);
-      }
-      newIconName = req.files.icon[0].filename;
-    }
-  } else if (req.file) {
-    // If using single file upload, you need to specify which field it's for
-    // This is problematic as you can't distinguish between image and icon
-    console.warn(
-      "Single file upload detected - cannot distinguish between image and icon"
-    );
+    const imageFile = req.files.image[0];
+    const newImageKey = `uploads/${uuidv4()}_${imageFile.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: newImageKey,
+        Body: imageFile.buffer,
+        ContentType: imageFile.mimetype,
+      })
+      .promise();
+    updatedImageUrl = uploadRes.Location;
+    updatedImageKey = newImageKey;
   }
 
-  // Update the data object with new file names
-  updateData.image = newImageName;
-  updateData.icon = newIconName;
+  if (req.files?.icon?.[0]) {
+    // Delete old icon from S3
+    if (university.iconKey) {
+      await s3
+        .deleteObject({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: university.iconKey,
+        })
+        .promise();
+    }
+    const iconFile = req.files.icon[0];
+    const newIconKey = `uploads/${uuidv4()}_${iconFile.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: newIconKey,
+        Body: iconFile.buffer,
+        ContentType: iconFile.mimetype,
+      })
+      .promise();
+    updatedIconUrl = uploadRes.Location;
+    updatedIconKey = newIconKey;
+  }
 
-  // Update the university
-  const updatedUniversity = await University.findByIdAndUpdate(
-    req.params.id,
-    updateData,
-    { new: true, runValidators: true }
-  );
+  university.name = name || university.name;
+  university.type = type || university.type;
+  university.description = description || university.description;
+  university.image = updatedImageUrl;
+  university.imageKey = updatedImageKey;
+  university.icon = updatedIconUrl;
+  university.iconKey = updatedIconKey;
 
-  res.status(200).json(updatedUniversity);
+  const updatedUniversity = await university.save();
+  res.json(updatedUniversity);
 });
 
 export {
   upload,
   addUniversity,
   getAllUniversities,
-  deleteUniversity,
   getUniversity,
+  deleteUniversity,
   updateUniversity,
 };
