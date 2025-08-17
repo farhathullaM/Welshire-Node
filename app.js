@@ -23,6 +23,8 @@ connectDb();
 const app = express();
 const __dirname = path.resolve();
 
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     credentials: true,
@@ -33,9 +35,6 @@ app.use(
     ],
   })
 );
-// app.use(cors({
-//   origin: "*"
-// }));
 
 app.use(express.json());
 app.use(cookieParser());
