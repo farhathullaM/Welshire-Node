@@ -1,29 +1,14 @@
 import asyncHandler from "express-async-handler";
 import Blog from "../models/Blog.js";
 import multer from "multer";
-import fs from "fs";
 import path from "path";
-import { deleteFileWithFolderName } from "../utils/fileDelete.js";
+import { v4 as uuidv4 } from "uuid";
+import { s3 } from "../utils/s3.js";
 
-const uploadPath = path.join("uploads", "blog");
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-// Configure multer to handle multiple files
+// Multer Memory Storage for S3 Uploads
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    // Optional: Add file type validation
     const allowedTypes = /jpeg|jpg|png|gif|svg/;
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
@@ -42,26 +27,39 @@ const addBlog = asyncHandler(async (req, res) => {
   const { title, description, author } = req.body;
   if (!title || !description) {
     res.status(400);
-    throw new Error("Title and description is mandatory");
+    throw new Error("Title and description are mandatory");
   }
 
-  let imageName = null;
+  let imageUrl = null;
+  let imageKey = null;
+
   if (req.file) {
-    imageName = req.file.filename;
+    imageKey = `uploads/${uuidv4()}_${req.file.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: imageKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      })
+      .promise();
+    imageUrl = uploadRes.Location;
   }
 
   const blog = await Blog.create({
     title,
     description,
-    image: imageName,
+    image: imageUrl,
+    imageKey,
     author,
   });
+
   res.status(201).json(blog);
 });
 
 const getAllBlogs = asyncHandler(async (req, res) => {
-  const page = req.query.page || 1;
-  const limit = req.query.limit || 10;
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
   const search = req.query.search || "";
 
   const query = {
@@ -69,9 +67,7 @@ const getAllBlogs = asyncHandler(async (req, res) => {
   };
 
   const skip = (page - 1) * limit;
-
-  const blogs = await Blog.find(query).skip(skip).limit(Number(limit));
-
+  const blogs = await Blog.find(query).skip(skip).limit(limit);
   const total = await Blog.countDocuments(query);
 
   res.status(200).json({
@@ -88,7 +84,7 @@ const getBlog = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Blog not found");
   }
-  res.status(200).send(blog);
+  res.status(200).json(blog);
 });
 
 const deleteBlog = asyncHandler(async (req, res) => {
@@ -97,10 +93,17 @@ const deleteBlog = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Blog not found");
   }
-  if (blog.image) {
-    await deleteFileWithFolderName(uploadPath, blog.image);
+
+  if (blog.imageKey) {
+    await s3
+      .deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: blog.imageKey,
+      })
+      .promise();
   }
-  await Blog.findByIdAndDelete(req.params.id);
+
+  await blog.deleteOne();
   res.status(200).json({ success: true, message: "Blog deleted successfully" });
 });
 
@@ -117,19 +120,35 @@ const updateBlog = asyncHandler(async (req, res) => {
     author: req.body.author || blog.author,
   };
 
-  let newImageName = null;
   if (req.file) {
-    if (blog.image) {
-      await deleteFileWithFolderName(uploadPath, blog.image);
+    // Delete old image from S3
+    if (blog.imageKey) {
+      await s3
+        .deleteObject({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: blog.imageKey,
+        })
+        .promise();
     }
-    newImageName = req.file.filename;
+
+    const newImageKey = `uploads/${uuidv4()}_${req.file.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: newImageKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      })
+      .promise();
+
+    updateData.image = uploadRes.Location;
+    updateData.imageKey = newImageKey;
   }
 
-  const updatedBlog = await Blog.findByIdAndUpdate(
-    req.params.id,
-    { ...updateData, image: newImageName },
-    { new: true }
-  );
+  const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, updateData, {
+    new: true,
+  });
+
   res.status(200).json(updatedBlog);
 });
 
