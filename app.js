@@ -28,13 +28,14 @@ app.use(
     credentials: true,
     origin: [
       "http://localhost:5173",
-      "https://www.horizoneducation.in/",
-      "http://horizoneducation.in/",
-      "https://welshire.in/",
-      "http://welshire.in/",
+      "https://www.horizoneducation.in",
+      "http://horizoneducation.in",
+      "https://welshire.in",
+      "http://welshire.in",
     ],
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
