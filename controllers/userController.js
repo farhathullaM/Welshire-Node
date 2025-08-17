@@ -54,8 +54,9 @@ const loginUser = asyncHandler(async (req, res) => {
     res.cookie("jwt", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "none",
+      secure: true,
     });
     res.status(200).json({
       _id: user.id,
