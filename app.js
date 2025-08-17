@@ -26,7 +26,13 @@ const __dirname = path.resolve();
 app.use(
   cors({
     credentials: true,
-    origin: ["http://localhost:5173", "https://www.horizoneducation.in/"],
+    origin: [
+      "http://localhost:5173",
+      "https://www.horizoneducation.in/",
+      "http://horizoneducation.in/",
+      "https://welshire.in/",
+      "http://welshire.in/",
+    ],
   })
 );
 app.use(express.json());
