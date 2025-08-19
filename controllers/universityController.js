@@ -9,7 +9,7 @@ import { s3 } from "../utils/s3.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|svg/;
+    const allowedTypes = /jpeg|jpg|png|gif|svg|webp|avif|apng/;
     const extname = allowedTypes.test(file.originalname.toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     if (mimetype && extname) cb(null, true);
@@ -19,6 +19,7 @@ const upload = multer({
 
 // Add University
 const addUniversity = asyncHandler(async (req, res) => {
+  console.log(req.body);
   const { name, type, description } = req.body;
   if (!name || !type) {
     res.status(400);

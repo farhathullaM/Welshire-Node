@@ -10,6 +10,7 @@ const courseSchema = new mongoose.Schema(
     name: { type: String, required: true },
     description: { type: String },
     image: { type: String },
+    imageKey: { type: String },
     duration: { type: String },
     fees: { type: String },
     eligibility: { type: String },

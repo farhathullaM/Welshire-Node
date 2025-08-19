@@ -9,7 +9,7 @@ import { s3 } from "../utils/s3.js";
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|svg/;
+    const allowedTypes = /jpeg|jpg|png|gif|svg|webp|avif|apng/;
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
