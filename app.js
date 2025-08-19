@@ -32,6 +32,7 @@ app.use(
       "http://localhost:5173",
       "https://www.horizoneducation.in",
       "https://welshire.in",
+      "http://horizoneducation.in"
     ],
   })
 );

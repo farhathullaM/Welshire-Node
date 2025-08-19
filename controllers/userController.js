@@ -54,8 +54,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
     res.cookie("jwt", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Keep this
-      sameSite: "lax", // <--- CHANGE THIS TO 'lax'
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     res.status(200).json({
@@ -73,8 +73,8 @@ const loginUser = asyncHandler(async (req, res) => {
 const logoutUser = asyncHandler(async (req, res) => {
   res.clearCookie("jwt", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // Keep this
-    sameSite: "lax", // <--- CHANGE THIS TO 'lax'
+    secure: true,
+    sameSite: "none",
   });
 
   res.status(200).json({ message: "Logged out successfully" });
