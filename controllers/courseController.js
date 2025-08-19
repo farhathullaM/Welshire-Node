@@ -1,31 +1,16 @@
 import asyncHandler from "express-async-handler";
 import multer from "multer";
-import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
 import Course from "../models/Course.js";
 import University from "../models/University.js";
-import { deleteFileWithFolderName } from "../utils/fileDelete.js";
+import { s3 } from "../utils/s3.js";
 
-const uploadPath = path.join("uploads", "course");
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-// Configure multer to handle multiple files
+// Multer Memory Storage for S3 Uploads
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    // Optional: Add file type validation
-    const allowedTypes = /jpeg|jpg|png|gif|svg/;
+    const allowedTypes = /jpeg|jpg|png|gif|svg|webp|avif|apng/;
     const extname = allowedTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
@@ -50,35 +35,48 @@ const addCourse = asyncHandler(async (req, res) => {
     eligibility,
   } = req.body;
 
-  //validation
+  // Validation
   if (!university_id || !name) {
     res.status(400);
     throw new Error("University id and name is mandatory");
   }
 
-  //Check if university exist
+  // Check if university exist
   const university = await University.findById(university_id);
   if (!university) {
     res.status(404);
     throw new Error("University not found");
   }
 
-  //image upload
-  let imageName = null;
+  // Image upload to S3
+  let imageUrl = null;
+  let imageKey = null;
+
   if (req.file) {
-    imageName = req.file.filename;
+    imageKey = `uploads/courses/${uuidv4()}_${req.file.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: imageKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      })
+      .promise();
+    imageUrl = uploadRes.Location;
   }
 
   const course = await Course.create({
     university_id,
     name,
     description,
-    image: imageName,
+    image: imageUrl,
+    imageKey,
     duration,
     fees,
     mode,
     eligibility,
   });
+
   res.status(201).json(course);
 });
 
@@ -87,21 +85,20 @@ const updateCourse = asyncHandler(async (req, res) => {
     university_id,
     name,
     description,
-    image,
     duration,
     fees,
     mode,
     eligibility,
   } = req.body;
 
-  //Check if course exist
+  // Check if course exist
   const course = await Course.findById(req.params.id);
   if (!course) {
     res.status(404);
     throw new Error("Course not found");
   }
 
-  //Check if university exist
+  // Check if university exist
   if (university_id) {
     const university = await University.findById(university_id);
     if (!university) {
@@ -110,32 +107,50 @@ const updateCourse = asyncHandler(async (req, res) => {
     }
   }
 
-  //prepare update object
+  // Prepare update object
   const updateData = {
     name: name || course.name,
     description: description || course.description,
-    image: image || course.image,
     duration: duration || course.duration,
     fees: fees || course.fees,
     mode: mode || course.mode,
     eligibility: eligibility || course.eligibility,
   };
 
-  //file update
-  let newImageName = course.image;
+  // Handle image update
   if (req.file) {
-    if (course.image) {
-      await deleteFileWithFolderName(uploadPath, course.image);
+    // Delete old image from S3
+    if (course.imageKey) {
+      await s3
+        .deleteObject({
+          Bucket: process.env.AWS_BUCKET_NAME,
+          Key: course.imageKey,
+        })
+        .promise();
     }
-    newImageName = req.file.filename;
+
+    // Upload new image to S3
+    const newImageKey = `uploads/courses/${uuidv4()}_${req.file.originalname}`;
+    const uploadRes = await s3
+      .upload({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: newImageKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      })
+      .promise();
+
+    updateData.image = uploadRes.Location;
+    updateData.imageKey = newImageKey;
   }
 
-  //update course
+  // Update course
   const updatedCourse = await Course.findByIdAndUpdate(
     req.params.id,
-    { ...updateData, image: newImageName },
+    updateData,
     { new: true }
   );
+
   res.status(200).json(updatedCourse);
 });
 
@@ -145,9 +160,17 @@ const deleteCourse = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Course not found");
   }
-  if (course.image) {
-    await deleteFileWithFolderName(uploadPath, course.image);
+
+  // Delete image from S3
+  if (course.imageKey) {
+    await s3
+      .deleteObject({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: course.imageKey,
+      })
+      .promise();
   }
+
   await Course.findByIdAndDelete(req.params.id);
   res
     .status(200)
@@ -155,8 +178,12 @@ const deleteCourse = asyncHandler(async (req, res) => {
 });
 
 const getCourse = asyncHandler(async (req, res) => {
-  const courses = await Course.findById(req.params.id);
-  res.status(200).send(courses);
+  const course = await Course.findById(req.params.id);
+  if (!course) {
+    res.status(404);
+    throw new Error("Course not found");
+  }
+  res.status(200).json(course);
 });
 
 const getAllCourses = asyncHandler(async (req, res) => {

@@ -4,6 +4,7 @@ import { generateToken } from "../utils/generateToken.js";
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  console.log(email, password, "-------");
 
   const user = await User.findOne({ email });
   if (user && (await user.matchPassword(password))) {
@@ -45,4 +46,8 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 });
 
-export { loginUser, registerUser };
+const logoutUser = asyncHandler(async (req, res) => {
+  res.status(200).json({ message: "Logged out successfully" });
+});
+
+export { loginUser, registerUser, logoutUser };
